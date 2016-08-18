@@ -1,5 +1,6 @@
 #
 # Copyright 2015-2016, Intel Corporation
+# Copyright (c) 2016, Microsoft Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -39,7 +40,7 @@ Param(
     $DIR = ""
     )
 $Env:UNITTEST_NAME = "obj_constructor/TEST0"
-$Env:UNITTEST_NUM = "0w"
+$Env:UNITTEST_NUM = "0"
 # XXX:  bash has a few calls to tools that we don't have on
 # windows (yet) that set PMEM_IS_PMEM and NON_PMEM_IS_PMEM based
 # on their output
@@ -54,11 +55,11 @@ require_fs_type any
 
 setup
 
-create_holey_file 8 $DIR\testfile1
+create_holey_file 8M $DIR\testfile1
 
 # This is a pretty length test on non-pmem devices, so force clflushes.
 $Env:PMEM_IS_PMEM_FORCE=1
 
-expect_normal_exit $Env:EXE_DIR\obj_constructor$EXESUFFIX $DIR\testfile1
+expect_normal_exit $Env:EXE_DIR\obj_constructor$Env:EXESUFFIX $DIR\testfile1
 
 pass

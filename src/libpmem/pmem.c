@@ -114,7 +114,9 @@
  *	Checks for overlapped ranges to determine whether to copy from
  *	the beginning of the range or from the end.  If MOVNT instructions
  *	are available, uses the memory copy flow described above, otherwise
- *	calls the libc memmove() followed by pmem_flush().
+ *	calls the libc memmove() followed by pmem_flush(). Since no conditional
+ *	compilation and/or architecture specific CFLAGS are in use at the
+ *	moment, SSE2 ( thus movnt ) is just assumed to be available.
  *
  * pmem_memcpy_nodrain()
  *
@@ -178,6 +180,7 @@
 #include "pmem.h"
 #include "cpu.h"
 #include "out.h"
+#include "util.h"
 #include "mmap.h"
 #include "file.h"
 #include "valgrind_internal.h"
@@ -457,7 +460,7 @@ pmem_is_pmem_init(void)
 	static volatile unsigned init;
 
 	while (init != 2) {
-		if (!__sync_bool_compare_and_swap(&init, 0, 1))
+		if (!util_bool_compare_and_swap32(&init, 0, 1))
 			continue;
 
 		/*
@@ -482,8 +485,8 @@ pmem_is_pmem_init(void)
 			LOG(4, "PMEM_IS_PMEM_FORCE=%d", val);
 		}
 
-		if (!__sync_bool_compare_and_swap(&init, 1, 2))
-			FATAL("__sync_bool_compare_and_swap");
+		if (!util_bool_compare_and_swap32(&init, 1, 2))
+			FATAL("util_bool_compare_and_swap32");
 	}
 }
 
@@ -1090,6 +1093,30 @@ pmem_memset_persist(void *pmemdest, int c, size_t len)
 }
 
 /*
+ * pmem_log_cpuinfo -- log the results of cpu dispatching decisions,
+ * and verify them
+ */
+static void
+pmem_log_cpuinfo(void)
+{
+	if (Func_flush == flush_clwb)
+		LOG(3, "using clwb");
+	else if (Func_flush == flush_clflushopt)
+		LOG(3, "using clflushopt");
+	else if (Func_flush == flush_clflush)
+		LOG(3, "using clflush");
+	else
+		FATAL("invalid flush function address");
+
+	if (Func_memmove_nodrain == memmove_nodrain_movnt)
+		LOG(3, "using movnt");
+	else if (Func_memmove_nodrain == memmove_nodrain_normal)
+		LOG(3, "not using movnt");
+	else
+		FATAL("invalid memove_nodrain function address");
+}
+
+/*
  * pmem_get_cpuinfo -- configure libpmem based on CPUID
  */
 static void
@@ -1123,34 +1150,6 @@ pmem_get_cpuinfo(void)
 			Func_predrain_fence = predrain_fence_sfence;
 		}
 	}
-
-	if (Func_flush == flush_clwb)
-		LOG(3, "using clwb");
-	else if (Func_flush == flush_clflushopt)
-		LOG(3, "using clflushopt");
-	else if (Func_flush == flush_clflush)
-		LOG(3, "using clflush");
-	else
-		ASSERT(0);
-
-	if (is_cpu_sse2_present()) {
-		LOG(3, "movnt supported");
-
-		char *e = getenv("PMEM_NO_MOVNT");
-		if (e && strcmp(e, "1") == 0)
-			LOG(3, "PMEM_NO_MOVNT forced no movnt");
-		else {
-			Func_memmove_nodrain = memmove_nodrain_movnt;
-			Func_memset_nodrain = memset_nodrain_movnt;
-		}
-	}
-
-	if (Func_memmove_nodrain == memmove_nodrain_movnt)
-		LOG(3, "using movnt");
-	else if (Func_memmove_nodrain == memmove_nodrain_normal)
-		LOG(3, "not using movnt");
-	else
-		ASSERT(0);
 }
 
 /*
@@ -1180,6 +1179,16 @@ pmem_init(void)
 			Movnt_threshold = (size_t)val;
 		}
 	}
+
+	ptr = getenv("PMEM_NO_MOVNT");
+	if (ptr && strcmp(ptr, "1") == 0)
+		LOG(3, "PMEM_NO_MOVNT forced no movnt");
+	else {
+		Func_memmove_nodrain = memmove_nodrain_movnt;
+		Func_memset_nodrain = memset_nodrain_movnt;
+	}
+
+	pmem_log_cpuinfo();
 }
 
 

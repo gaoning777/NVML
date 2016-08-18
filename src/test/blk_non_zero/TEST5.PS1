@@ -1,5 +1,6 @@
 #
 # Copyright 2015-2016, Intel Corporation
+# Copyright (c) 2016, Microsoft Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -54,7 +55,7 @@ require_fs_type pmem non-pmem
 setup
 
 # single arena and minimum pmemblk pool file case
-$MIN_POOL_SIZE = $((16*1024*1024 + 64*1024))
+$MIN_POOL_SIZE = ((16*1024*1024 + 64*1024).ToString() + "b")
 
 #
 # All reads to an unwritten block pool should return zeros.
@@ -62,7 +63,7 @@ $MIN_POOL_SIZE = $((16*1024*1024 + 64*1024))
 # Attempts to zero uninitialized blocks are nops (should succeed).
 #
 
-expect_normal_exit $Env:EXE_DIR\blk_non_zero$EXESUFFIX 512 $DIR\testfile1 `
+expect_normal_exit $Env:EXE_DIR\blk_non_zero$Env:EXESUFFIX 512 $DIR\testfile1 `
 c $MIN_POOL_SIZE r:0 r:1 r:32312 r:32313 z:0 z:1 r:0
 
 check

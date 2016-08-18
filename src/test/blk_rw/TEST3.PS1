@@ -56,8 +56,8 @@ require_fs_type pmem non-pmem
 setup
 
 # single arena write case
-create_holey_file 1024 $DIR\testfile1
-expect_normal_exit $Env:EXE_DIR\blk_rw$EXESUFFIX 512 $DIR\testfile1 c `
+create_holey_file 1G $DIR\testfile1
+expect_normal_exit $Env:EXE_DIR\blk_rw$Env:EXESUFFIX 512 $DIR\testfile1 c `
 	w:0 r:1 r:0 w:1 r:0 r:1 r:2
 
 check_pool $DIR\testfile1

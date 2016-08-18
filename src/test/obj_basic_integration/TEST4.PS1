@@ -1,6 +1,5 @@
-#!/bin/bash -e
 #
-# Copyright 2016, Intel Corporation
+# Copyright 2015-2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -30,31 +29,43 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-
 #
-# src/test/base64/TEST0 -- unit test for base64
+# src/test/obj_basic_integration/TEST3 -- unit test for
+# pmemobj APIs
 #
-export UNITTEST_NAME=base64/TEST0
-export UNITTEST_NUM=0
+[CmdletBinding(PositionalBinding=$false)]
+Param(
+    [alias("d")]
+    $DIR = ""
+    )
+$Env:UNITTEST_NAME = "obj_basic_integration\TEST4"
+$Env:UNITTEST_NUM = "4"
+# XXX:  bash has a few calls to tools that we don't have on
+# windows (yet) that set PMEM_IS_PMEM and NON_PMEM_IS_PMEM based
+# on their output
+$Env:PMEM_IS_PMEM = $true
+$Env:NON_PMEM_IS_PMEM = $true
 
 # standard unit test setup
-. ../unittest/unittest.sh
+. ..\unittest\unittest.ps1
 
-require_fs_type none
+require_fs_type any
 
 setup
 
-function get_pair() {
-	echo -n "$(echo -n $1):$(echo -n $1 | base64)"
-}
+create_poolset $DIR/testset1 8M:$DIR/testfile1 `
+	r 10M:$DIR/testfile2 `
+	r 12M:$DIR/testfile3
 
-expect_normal_exit ./base64_test\
-	$(get_pair 1)\
-	$(get_pair AB)\
-	$(get_pair 321)\
-	$(get_pair abcd)\
-	$(get_pair 54321)\
-	$(get_pair 123456)\
-	$(get_pair ABCDEFG)
+expect_normal_exit `
+    $Env:EXE_DIR\obj_basic_integration$Env:EXESUFFIX $DIR/testset1
+
+compare_replicas "-soOaAb -l -Z -H -C" `
+	$DIR/testfile1 $DIR/testfile2 > diff$Env:UNITTEST_NUM.log
+
+compare_replicas "-soOaAb -l -Z -H -C" `
+	$DIR/testfile1 $DIR/testfile3 >> diff$Env:UNITTEST_NUM.log
+
+check
 
 pass

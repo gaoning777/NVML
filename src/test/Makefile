@@ -73,6 +73,7 @@ OBJ_TESTS = \
 	obj_debug\
 	obj_direct\
 	obj_first_next\
+	obj_fragmentation\
 	obj_heap\
 	obj_heap_interrupt\
 	obj_heap_state\
@@ -172,8 +173,7 @@ OTHER_TESTS = \
 	util_is_absolute \
 	util_is_poolset\
 	util_poolset_size\
-	util_poolset_foreach\
-	base64
+	util_poolset_foreach
 
 PMEM_TESTS = \
 	pmem_is_pmem\

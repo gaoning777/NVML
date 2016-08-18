@@ -42,6 +42,8 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H 1
 
+#pragma warning(disable : 4996)
+
 #define _CRT_RAND_S
 
 /*
@@ -128,21 +130,6 @@ __sync_fetch_and_add(volatile uint32_t *a, uint32_t val)
 	return InterlockedExchangeAdd(a, val);
 }
 
-__inline uint64_t
-__sync_fetch_and_add64(volatile uint64_t *a, uint64_t val)
-{
-	return InterlockedExchangeAdd64((LONG64 *)a, (LONG64)val);
-}
-
-__inline long
-__sync_bool_compare_and_swap(volatile uint64_t *ptr,
-				uint64_t oldval, uint64_t newval)
-{
-	uint64_t old = InterlockedCompareExchange64((volatile LONG64 *)ptr,
-		(LONG64)newval, (LONG64)oldval);
-	return (old == oldval);
-}
-
 __inline void
 __sync_synchronize()
 {
@@ -176,6 +163,9 @@ int posix_fallocate(int fd, off_t offset, off_t size);
 
 /* string.h */
 #define strtok_r strtok_s
+
+const char *strsignal(int sig);
+extern const char * const sys_siglist[];
 
 /* signal.h */
 typedef unsigned long long sigset_t; /* one bit for each signal */

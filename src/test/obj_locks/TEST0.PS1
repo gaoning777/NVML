@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2016, Intel Corporation
+# Copyright 2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,25 +29,28 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# src/test/win_lists/TEST0 -- unit test for windows list macros
+
 #
-$Env:UNITTEST_NAME = "win_lists\TEST0"
+# src/test/obj_locks/TEST0 -- unit test for pmemobj_mutex and pmemobj_rwlock
+#
+[CmdletBinding(PositionalBinding=$false)]
+Param(
+    [alias("d")]
+    $DIR = ""
+    )
+$Env:UNITTEST_NAME = "obj_locks\TEST0"
 $Env:UNITTEST_NUM = "0"
 # XXX:  bash has a few calls to tools that we don't have on
 # windows (yet) that set PMEM_IS_PMEM and NON_PMEM_IS_PMEM based
 # on their output
 $Env:PMEM_IS_PMEM = $true
 $Env:NON_PMEM_IS_PMEM = $true
-$DIR = ""
 
 # standard unit test setup
 . ..\unittest\unittest.ps1
 
-require_fs_type none
-
 setup
 
-expect_normal_exit ..\..\x64\debug\win_lists$EXESUFFIX
+expect_normal_exit $Env:EXE_DIR\obj_locks$Env:EXESUFFIX $DIR\testfile1
 
-# check will print the appropriate pass/fail message
-check
+pass

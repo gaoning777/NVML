@@ -1,5 +1,5 @@
 #
-# Copyright 2016, Intel Corporation
+# Copyright 2015-2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,16 +29,42 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# src/test/log_pool/TEST24 -- unit test for pmemlog_open
+#
+# parameter handling
+#
+[CmdletBinding(PositionalBinding=$false)]
+Param(
+    [alias("d")]
+    $DIR = ""
+    )
+$Env:UNITTEST_NAME = "log_pool\TEST24"
+$Env:UNITTEST_NUM = "24"
+# XXX:  bash has a few calls to tools that we don't have on
+# windows (yet) that set PMEM_IS_PMEM and NON_PMEM_IS_PMEM based
+# on their output
+$Env:PMEM_IS_PMEM = $true
+$Env:NON_PMEM_IS_PMEM = $true
+
+# standard unit test setup
+. ..\unittest\unittest.ps1
+
+require_fs_type "any"
+
+setup
 
 #
-# src/test/base64/Makefile -- build test for base64 module
+# TEST24 existing file, file size >= min required size
+#        (no read permissions)
 #
-TOP = ../../..
+expect_normal_exit $Env:EXE_DIR\log_pool$Env:EXESUFFIX c $DIR\testfile 20 0600
+# deny read
+& icacls $DIR\testfile /deny ${Env:USERNAME}:R >$null
 
-vpath %.c $(TOP)/src/rpmem_common
+expect_normal_exit $Env:EXE_DIR\log_pool$Env:EXESUFFIX o $DIR\testfile
 
-TARGET = base64_test
-OBJS = base64_test.o base64.o
+# restore full permissions
+& icacls $DIR\testfile /grant ${Env:USERNAME}:F >$null
+check
 
-include ../Makefile.inc
-INCS += -I$(TOP)/src/rpmem_common
+pass

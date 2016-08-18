@@ -1,5 +1,6 @@
 #
 # Copyright 2014-2016, Intel Corporation
+# Copyright (c) 2016, Microsoft Corporation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,6 +30,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
+# make sure we have a well defined locale for string operations here
+export LC_ALL="C"
 
 . ../testconfig.sh
 
@@ -229,51 +233,145 @@ RPMEM_LOG_LEVEL"
 export CHECK_POOL_LOG_FILE=check_pool_${BUILD}_${UNITTEST_NUM}.log
 
 #
-# create_file -- create zeroed out files of a given length in megs
+# get_files -- print list of files in the current directory matching the given regex to stdout
+#
+# This function has been implemented to workaround a race condition in
+# `find`, which fails if any file disappears in the middle of the operation.
+#
+# example, to list all *.log files in the current directory
+#	get_files ".*\.log"
+function get_files() {
+	set +e
+	ls -1 | grep -E "^$*$"
+	set -e
+}
+
+#
+# get_executables -- print list of executable files in the current directory to stdout
+#
+# This function has been implemented to workaround a race condition in
+# `find`, which fails if any file disappears in the middle of the operation.
+#
+function get_executables() {
+	set +e
+	for c in *
+	do
+		local rights=$(stat -c "%a %F" "$c" 2>/dev/null)
+		if [ "$rights" == "" ]
+		then
+			continue
+		fi
+		local executable=$((${rights:0:1} % 2))
+		if [ "${rights#[0-7]* }" == "regular file" -a $executable -eq 1 ]
+		then
+			echo "$c"
+		fi
+	done
+	set -e
+}
+
+#
+# convert_to_bytes -- converts the string with K, M, G or T suffixes
+# to bytes
+#
+# example:
+#   "1G" --> "1073741824"
+#   "2T" --> "2199023255552"
+#   "3k" --> "3072"
+#   "1K" --> "1024"
+#   "10" --> "10"
+#
+function convert_to_bytes() {
+	size="$(echo $1 | tr '[:upper:]' '[:lower:]')"
+	if [[ $size == *kib ]]
+	then size=$(($(echo $size | tr -d 'kib') * 1024))
+	elif [[ $size == *mib ]]
+	then size=$(($(echo $size | tr -d 'mib') * 1024 * 1024))
+	elif [[ $size == *gib ]]
+	then size=$(($(echo $size | tr -d 'gib') * 1024 * 1024 * 1024))
+	elif [[ $size == *tib ]]
+	then size=$(($(echo $size | tr -d 'tib') * 1024 * 1024 * 1024 * 1024))
+	elif [[ $size == *pib ]]
+	then size=$(($(echo $size | tr -d 'pib') * 1024 * 1024 * 1024 * 1024 * 1024))
+	elif [[ $size == *kb ]]
+	then size=$(($(echo $size | tr -d 'kb') * 1000))
+	elif [[ $size == *mb ]]
+	then size=$(($(echo $size | tr -d 'mb') * 1000 * 1000))
+	elif [[ $size == *gb ]]
+	then size=$(($(echo $size | tr -d 'gb') * 1000 * 1000 * 1000))
+	elif [[ $size == *tb ]]
+	then size=$(($(echo $size | tr -d 'tb') * 1000 * 1000 * 1000 * 1000))
+	elif [[ $size == *pb ]]
+	then size=$(($(echo $size | tr -d 'pb') * 1000 * 1000 * 1000 * 1000 * 1000))
+	elif [[ $size == *b ]]
+	then size=$(($(echo $size | tr -d 'b')))
+	elif [[ $size == *k ]]
+	then size=$(($(echo $size | tr -d 'k') * 1024))
+	elif [[ $size == *m ]]
+	then size=$(($(echo $size | tr -d 'm') * 1024 * 1024))
+	elif [[ $size == *g ]]
+	then size=$(($(echo $size | tr -d 'g') * 1024 * 1024 * 1024))
+	elif [[ $size == *t ]]
+	then size=$(($(echo $size | tr -d 't') * 1024 * 1024 * 1024 * 1024))
+	elif [[ $size == *p ]]
+	then size=$(($(echo $size | tr -d 'p') * 1024 * 1024 * 1024 * 1024 * 1024))
+	fi
+
+	echo "$size"
+}
+
+#
+# create_file -- create zeroed out files of a given length
 #
 # example, to create two files, each 1GB in size:
-#	create_file 1024 testfile1 testfile2
+#	create_file 1G testfile1 testfile2
 #
 function create_file() {
-	size=$1
+	size=$(convert_to_bytes $1)
 	shift
 	for file in $*
 	do
-		dd if=/dev/zero of=$file bs=1M count=$size >> prep$UNITTEST_NUM.log
+		dd if=/dev/zero of=$file bs=1M count=$size iflag=count_bytes >> prep$UNITTEST_NUM.log
 	done
 }
 
 #
-# create_nonzeroed_file -- create non-zeroed files of a given length in megs
+# create_nonzeroed_file -- create non-zeroed files of a given length
 #
 # A given first kilobytes of the file is zeroed out.
 #
 # example, to create two files, each 1GB in size, with first 4K zeroed
-#	create_nonzeroed_file 1024 4 testfile1 testfile2
+#	create_nonzeroed_file 1G 4K testfile1 testfile2
 #
 function create_nonzeroed_file() {
-	offset=$2
-	size=$(($1 * 1024 - $offset))
+	offset=$(convert_to_bytes $2)
+	size=$(($(convert_to_bytes $1) - $offset))
 	shift 2
 	for file in $*
 	do
-		truncate -s ${offset}K $file >> prep$UNITTEST_NUM.log
-		dd if=/dev/zero bs=1K count=${size} 2>>prep$UNITTEST_NUM.log | tr '\0' '\132' >> $file
+		truncate -s ${offset} $file >> prep$UNITTEST_NUM.log
+		dd if=/dev/zero bs=1K count=${size} iflag=count_bytes 2>>prep$UNITTEST_NUM.log | tr '\0' '\132' >> $file
 	done
 }
 
 #
-# create_holey_file -- create holey files of a given length in megs
+# create_holey_file -- create holey files of a given length
 #
-# example, to create two files, each 1GB in size:
-#	create_holey_file 1024 testfile1 testfile2
+# examples:
+#	create_holey_file 1024k testfile1 testfile2
+#	create_holey_file 2048M testfile1 testfile2
+#	create_holey_file 234 testfile1
+#	create_holey_file 2340b testfile1
 #
+# Input unit size is in bytes with optional suffixes like k, KB, M, etc.
+#
+
 function create_holey_file() {
-	size=$1
+	size=$(convert_to_bytes $1)
 	shift
 	for file in $*
 	do
-		truncate -s ${size}M $file >> prep$UNITTEST_NUM.log
+		truncate -s ${size} $file >> prep$UNITTEST_NUM.log
 	done
 }
 
@@ -362,6 +460,8 @@ function create_poolset() {
 		if [ ! $asize ]; then
 			asize=$fsize
 		fi
+
+		asize=$(convert_to_bytes $asize)
 
 		case "$cmd"
 		in
@@ -509,7 +609,7 @@ function expect_normal_exit() {
 
 		# ignore Ctrl-C
 		if [ $ret != 130 ]; then
-			for f in $(find . -name "node_*.log"); do
+			for f in $(get_files "node_.*\.log"); do
 				dump_last_n_lines $f
 			done
 			dump_last_n_lines out$UNITTEST_NUM.log
@@ -815,7 +915,7 @@ function require_valgrind() {
 function require_valgrind_pmemcheck() {
 	require_valgrind
 	local binary=$1
-	[ -n "$binary" ] || binary=`find . -maxdepth 1 -executable -type f`
+	[ -n "$binary" ] || binary=$(get_executables)
         strings ${binary} 2>&1 | \
             grep -q "compiled with support for Valgrind pmemcheck" && true
         if [ $? -ne 0 ]; then
@@ -840,7 +940,7 @@ function require_valgrind_pmemcheck() {
 function require_valgrind_helgrind() {
 	require_valgrind
 	local binary=$1
-	[ -n "$binary" ] || binary=`find . -maxdepth 1 -executable -type f`
+	[ -n "$binary" ] || binary=$(get_executables)
         strings ${binary}.static-debug 2>&1 | \
             grep -q "compiled with support for Valgrind helgrind" && true
         if [ $? -ne 0 ]; then
@@ -865,7 +965,7 @@ function require_valgrind_helgrind() {
 function require_valgrind_memcheck() {
 	require_valgrind
 	local binary=$1
-	[ -n "$binary" ] || binary=`find . -maxdepth 1 -executable -type f`
+	[ -n "$binary" ] || binary=$(get_executables)
 	strings ${binary} 2>&1 | \
 		grep -q "compiled with support for Valgrind memcheck" && true
 	if [ $? -ne 0 ]; then
@@ -883,7 +983,7 @@ function require_valgrind_memcheck() {
 function require_valgrind_drd() {
 	require_valgrind
 	local binary=$1
-	[ -n "$binary" ] || binary=`find . -maxdepth 1 -executable -type f`
+	[ -n "$binary" ] || binary=$(get_executables)
 	strings ${binary} 2>&1 | \
 		grep -q "compiled with support for Valgrind drd" && true
 	if [ $? -ne 0 ]; then
@@ -1283,7 +1383,7 @@ function require_nodes() {
 
 	# remove all log files from required nodes
 	for (( N=$NODES_MAX ; $(($N + 1)) ; N=$(($N - 1)) )); do
-		for f in $(find . -name "node_${N}*.log"); do
+		for f in $(get_files "node_${N}.*\.log"); do
 			rm -f $f
 		done
 	done
@@ -1535,22 +1635,24 @@ function kill_on_node() {
 }
 
 #
-# create_holey_file_on_node -- create holey files of a given length in megs
+# create_holey_file_on_node -- create holey files of a given length
 #   usage: create_holey_file_on_node <node> <size>
 #
 # example, to create two files, each 1GB in size on node 0:
-#	create_holey_file_on_node 0 1024 testfile1 testfile2
+#	create_holey_file_on_node 0 1G testfile1 testfile2
+#
+# Input unit size is in bytes with optional suffixes like k, KB, M, etc.
 #
 function create_holey_file_on_node() {
 
 	validate_node_number $1
 
 	local N=$1
-	size=$2
+	size=$(convert_to_bytes $2)
 	shift 2
 	for file in $*
 	do
-		run_on_node $N truncate -s ${size}M $file >> prep$UNITTEST_NUM.log
+		run_on_node $N truncate -s ${size} $file >> prep$UNITTEST_NUM.log
 	done
 }
 
@@ -1558,9 +1660,6 @@ function create_holey_file_on_node() {
 # setup -- print message that test setup is commencing
 #
 function setup() {
-	# make sure we have a well defined locale for string operations here
-	export LC_ALL="C"
-
 	# fs type "none" must be explicitly enabled
 	if [ "$FS" = "none" -a "$req_fs_type" != "1" ]; then
 		exit 0
@@ -1584,10 +1683,9 @@ function setup() {
 
 	echo "$UNITTEST_NAME: SETUP ($TEST/$REAL_FS/$BUILD$MCSTR$PROV$PM)"
 
-	find . -maxdepth 1\
-		-ignore_readdir_race \
-		-name "*[a-zA-Z_]${UNITTEST_NUM}.log" \
-		-exec rm -f "{}" \;
+	for f in $(get_files ".*[a-zA-Z_]${UNITTEST_NUM}\.log"); do
+		rm -f $f
+	done
 
 	if [ "$FS" != "none" ]; then
 		if [ -d "$DIR" ]; then
@@ -1605,7 +1703,7 @@ function setup() {
 # check_local -- check local test results (using .match files)
 #
 function check_local() {
-	../match $(find . -regex "[^0-9w]*${UNITTEST_NUM}\.log\.match" | xargs)
+	../match $(get_files "[^0-9w]*${UNITTEST_NUM}\.log\.match")
 }
 
 #
@@ -1615,7 +1713,7 @@ function check() {
 	if [ $NODES_MAX -lt 0 ]; then
 		check_local
 	else
-		FILES=$(find . -regex "./node_[0-9]+_[^0-9w]*${UNITTEST_NUM}\.log\.match" | xargs)
+		FILES=$(get_files "node_[0-9]+_[^0-9w]*${UNITTEST_NUM}\.log\.match")
 		for file in $FILES; do
 			local N=`echo $file | cut -d"_" -f2`
 			local DIR=${NODE_WORKING_DIR[$N]}/$curtestdir
@@ -1624,7 +1722,7 @@ function check() {
 			validate_node_number $N
 			run_command scp $SCP_OPTS ${NODE[$N]}:$DIR/$FILE $NEW_FILE
 		done
-		../match $(find . -regex "./node_[0-9]+_[^0-9]*${UNITTEST_NUM}\.log\.match" | xargs)
+		../match $(get_files "node_[0-9]+_[^0-9]*${UNITTEST_NUM}\.log\.match")
 	fi
 }
 

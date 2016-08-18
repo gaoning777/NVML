@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, Intel Corporation
+ * Copyright 2015-2016, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,16 +31,36 @@
  */
 
 /*
- * base64.h -- base64 header file
+ * util_windows.c -- misc utilities with OS-specific implementation
  */
 
-#include <stddef.h>
-#include <stdint.h>
+#include <string.h>
+#include "util.h"
 
-void base64_init(void);
-uint8_t *base64_buff(size_t len, size_t *out_len);
+/* Windows CRT doesn't support all errors, add unmapped here */
+#define ENOTSUP_STR "Operation not supported"
+#define ECANCELED_STR "Operation canceled"
+#define UNMAPPED_STR "Unmapped error"
 
-int base64_encode(const uint8_t *in, size_t in_len, uint8_t *out,
-		size_t out_len);
-int base64_decode(const uint8_t *in, size_t in_len, uint8_t *out,
-		size_t out_len);
+/*
+ * util_strerror -- return string describing error number
+ *
+ * XXX: There are many other POSIX error codes that are not recognized by
+ * strerror_s(), so eventually we may want to implement this in a similar
+ * fashion as strsignal().
+ */
+void
+util_strerror(int errnum, char *buff, size_t bufflen)
+{
+	switch (errnum) {
+	case ENOTSUP:
+		strcpy_s(buff, bufflen, ENOTSUP_STR);
+		break;
+	case ECANCELED:
+		strcpy_s(buff, bufflen, ECANCELED_STR);
+		break;
+	default:
+		if (strerror_s(buff, bufflen, errnum))
+			strcpy_s(buff, bufflen, UNMAPPED_STR);
+	}
+}

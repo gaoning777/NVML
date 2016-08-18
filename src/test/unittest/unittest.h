@@ -116,15 +116,22 @@ extern "C" {
 #include <libpmempool.h>
 #include <libvmem.h>
 
+int ut_get_uuid_str(char *);
+#define UT_MAX_ERR_MSG 128
+#define UT_POOL_HDR_UUID_STR_LEN 37 /* uuid string length */
+#define UT_POOL_HDR_UUID_GEN_FILE "/proc/sys/kernel/random/uuid"
+
+/* XXX - fix this temp hack dup'ing util_strerror when we get mock for win */
+void ut_strerror(int errnum, char *buff, size_t bufflen);
 /* XXX - eliminate duplicated definitions in unittest.h and util.h */
 #ifndef _WIN32
 typedef struct stat ut_util_stat_t;
-#define ut_util_fstat	fstat
-#define ut_util_stat	stat
-#define ut_util_lseek	lseek
+#define ut_util_fstat fstat
+#define ut_util_stat stat
+#define ut_util_lseek lseek
 #else
 typedef struct _stat64 ut_util_stat_t;
-#define ut_util_fstat	_fstat64
+#define ut_util_fstat _fstat64
 static inline int ut_util_stat(const char *path,
 	ut_util_stat_t *st_bufp) {
 	int retVal = _stat64(path, st_bufp);
@@ -132,7 +139,7 @@ static inline int ut_util_stat(const char *path,
 	st_bufp->st_mode &= 0600;
 	return retVal;
 }
-#define ut_util_lseek	_lseeki64
+#define ut_util_lseek _lseeki64
 #endif
 
 /*
@@ -375,10 +382,10 @@ void *ut_mmap(const char *file, int line, const char *func, void *addr,
 int ut_munmap(const char *file, int line, const char *func, void *addr,
     size_t length);
 
-#ifndef _WIN32
 int ut_mprotect(const char *file, int line, const char *func, void *addr,
     size_t len, int prot);
 
+#ifndef _WIN32
 int ut_symlink(const char *file, int line, const char *func,
     const char *oldpath, const char *newpath);
 
@@ -489,11 +496,9 @@ int ut_closedir(const char *file, int line, const char *func, DIR *dirp);
 #define MUNMAP(addr, length)\
     ut_munmap(__FILE__, __LINE__, __func__, addr, length);
 
-#ifndef _WIN32
 /* a mprotect() that can't return -1 */
 #define MPROTECT(addr, len, prot)\
     ut_mprotect(__FILE__, __LINE__, __func__, addr, len, prot);
-#endif
 
 #define STAT(path, st_bufp)\
     ut_stat(__FILE__, __LINE__, __func__, path, st_bufp)

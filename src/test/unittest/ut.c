@@ -42,9 +42,57 @@
 #include "unittest.h"
 
 #ifndef _WIN32
+int
+ut_get_uuid_str(char *uu)
+{
+	int fd = OPEN(UT_POOL_HDR_UUID_GEN_FILE, O_RDONLY);
+	size_t num = READ(fd, uu, UT_POOL_HDR_UUID_STR_LEN);
+	UT_ASSERTeq(num, UT_POOL_HDR_UUID_STR_LEN);
+
+	uu[UT_POOL_HDR_UUID_STR_LEN - 1] = '\0';
+	CLOSE(fd);
+	return 0;
+}
+
 /* RHEL5 seems to be missing decls, even though libc supports them */
 extern DIR *fdopendir(int fd);
 extern ssize_t readlinkat(int, const char *restrict, char *__restrict, size_t);
+void
+ut_strerror(int errnum, char *buff, size_t bufflen)
+{
+	strerror_r(errnum, buff, bufflen);
+}
+#else
+#pragma comment(lib, "rpcrt4.lib")
+
+int
+ut_get_uuid_str(char *uuid_str)
+{
+	UUID uuid;
+	char *buff;
+
+	if (UuidCreate(&uuid) == 0)
+		if (UuidToStringA(&uuid, &buff) == RPC_S_OK) {
+			strcpy_s(uuid_str, UT_POOL_HDR_UUID_STR_LEN, buff);
+			return 0;
+		}
+	return -1;
+}
+/* XXX - fix this temp hack dup'ing util_strerror when we get mock for win */
+#define ENOTSUP_STR "Operation not supported"
+#define UNMAPPED_STR "Unmapped error"
+void
+ut_strerror(int errnum, char *buff, size_t bufflen)
+{
+	switch (errnum) {
+		case ENOTSUP:
+			strcpy_s(buff, bufflen, ENOTSUP_STR);
+			break;
+		default:
+			if (strerror_s(buff, bufflen, errnum))
+				strcpy_s(buff, bufflen, UNMAPPED_STR);
+	}
+}
 #endif
 
 #define MAXLOGNAME 100		/* maximum expected .log file name length */
@@ -82,7 +130,7 @@ vout(int flags, const char *prepend, const char *fmt, va_list ap)
 	int sn;
 	int quiet = Quiet;
 	const char *sep = "";
-	const char *errstr = "";
+	char errstr[UT_MAX_ERR_MSG] = "";
 	const char *nl = "\n";
 
 	if (Force_quiet)
@@ -117,7 +165,7 @@ vout(int flags, const char *prepend, const char *fmt, va_list ap)
 		if (*fmt == '!') {
 			fmt++;
 			sep = ": ";
-			errstr = strerror(errno);
+			ut_strerror(errno, errstr, UT_MAX_ERR_MSG);
 		}
 		sn = vsnprintf(&buf[cc], MAXPRINT - cc, fmt, ap);
 		if (sn < 0)

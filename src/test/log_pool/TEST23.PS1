@@ -1,5 +1,5 @@
-#
-# Copyright 2016, Intel Corporation
+﻿#
+# Copyright 2015-2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,28 +29,38 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# src/test/win_mmap/TEST0 -- unit test for memory mapping routines
+# src/test/log_pool/TEST23 -- unit test for pmemlog_open
 #
-$Env:UNITTEST_NAME = "win_mmap/TEST0"
-$Env:UNITTEST_NUM = "0"
+# parameter handling
+#
+[CmdletBinding(PositionalBinding=$false)]
+Param(
+    [alias("d")]
+    $DIR = ""
+    )
+$Env:UNITTEST_NAME = "log_pool\TEST23"
+$Env:UNITTEST_NUM = "23"
 # XXX:  bash has a few calls to tools that we don't have on
 # windows (yet) that set PMEM_IS_PMEM and NON_PMEM_IS_PMEM based
 # on their output
 $Env:PMEM_IS_PMEM = $true
 $Env:NON_PMEM_IS_PMEM = $true
-$DIR = ""
 
 # standard unit test setup
-. ../unittest/unittest.ps1
+. ..\unittest\unittest.ps1
 
-require_fs_type any
+require_fs_type "any"
 
 setup
 
-# create zero-length file
-fsutil file createnew $DIR/testfile 0
+create_holey_file 20M $DIR\testfile
 
-expect_normal_exit ../../x64/debug/win_mmap$EXESUFFIX $DIR/testfile
+#
+# TEST23 existing file, file size >= min required size
+#        (empty pool header)
+#
+expect_normal_exit $Env:EXE_DIR\log_pool$Env:EXESUFFIX o $DIR\testfile
 
-# check will print the appropriate pass/fail message
-#check
+check
+
+pass

@@ -65,6 +65,9 @@ int util_checksum(void *addr, size_t len, uint64_t *csump, int insert);
 int util_parse_size(const char *str, size_t *sizep);
 char *util_fgets(char *buffer, int max, FILE *stream);
 
+#define UTIL_MAX_ERR_MSG 128
+void util_strerror(int errnum, char *buff, size_t bufflen);
+
 void util_set_alloc_funcs(
 		void *(*malloc_func)(size_t size),
 		void (*free_func)(void *ptr),
@@ -101,6 +104,35 @@ util_clrbit(uint8_t *b, uint32_t i)
 
 #define util_flag_isset(a, f) ((a) & (f))
 #define util_flag_isclr(a, f) (((a) & (f)) == 0)
+
+/*
+ * util_compare_and_swap -- perform an atomic compare and swap
+ */
+#ifndef _MSC_VER
+#define util_bool_compare_and_swap32 __sync_bool_compare_and_swap
+#define util_bool_compare_and_swap64 __sync_bool_compare_and_swap
+#else
+static __inline int
+__sync_bool_compare_and_swap32(volatile LONG *ptr,
+		LONG oldval, LONG newval)
+{
+	LONG old = InterlockedCompareExchange(ptr, newval, oldval);
+	return (old == oldval);
+}
+
+static __inline int
+__sync_bool_compare_and_swap64(volatile LONG64 *ptr,
+		LONG64 oldval, LONG64 newval)
+{
+	LONG64 old = InterlockedCompareExchange64(ptr, newval, oldval);
+	return (old == oldval);
+}
+
+#define util_bool_compare_and_swap32(p, o, n)\
+	__sync_bool_compare_and_swap32((LONG *)(p), (LONG)(o), (LONG)(n))
+#define util_bool_compare_and_swap64(p, o, n)\
+	__sync_bool_compare_and_swap64((LONG64 *)(p), (LONG64)(o), (LONG64)(n))
+#endif
 
 /*
  * util_get_printable_ascii -- convert non-printable ascii to dot '.'
