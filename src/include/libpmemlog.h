@@ -85,6 +85,8 @@ void pmemlog_rewind(PMEMlogpool *plp);
 void pmemlog_walk(PMEMlogpool *plp, size_t chunksize,
 	int (*process_chunk)(const void *buf, size_t len, void *arg),
 	void *arg);
+size_t
+pmemlog_read(PMEMlogpool *plp, size_t size, char **addr);
 
 /*
  * Passing NULL to pmemlog_set_funcs() tells libpmemlog to continue to use the

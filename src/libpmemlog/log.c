@@ -70,6 +70,7 @@ pmemlog_descr_create(PMEMlogpool *plp, size_t poolsize)
 					LOG_FORMAT_DATA_ALIGN));
 	plp->end_offset = htole64(poolsize);
 	plp->write_offset = plp->start_offset;
+	plp->read_offset = plp->start_offset;
 
 	/* store non-volatile part of pool's descriptor */
 	pmem_msync(&plp->start_offset, 3 * sizeof(uint64_t));
@@ -633,6 +634,37 @@ pmemlog_walk(PMEMlogpool *plp, size_t chunksize,
 	}
 
 	util_rwlock_unlock(plp->rwlockp);
+}
+
+/*
+ * pmemlog_read -- walk through entries in a log memory pool
+ *
+ * size means how many bytes to read
+ * addr points to the address that stores the entry
+ *
+ * return value is the actual bytes that's been read
+ */
+size_t
+pmemlog_read(PMEMlogpool *plp, size_t size, char **addr)
+{
+	/*
+	 * We are assuming that the walker doesn't change the data it's reading
+	 * in place. We prevent everyone from changing the data behind our back
+	 * until we are done with processing it.
+	 */
+	if ((errno = pthread_rwlock_rdlock(plp->rwlockp))) {
+		ERR("!pthread_rwlock_rdlock");
+		return 0;
+	}
+
+	char *data = plp->addr;
+	uint64_t read_offset = le64toh(plp->read_offset);
+	uint64_t end_offset = le64toh(plp->write_offset);
+	size_t len = MIN(size, end_offset - read_offset);
+	*addr = &data[read_offset];
+	plp->read_offset += len;
+	util_rwlock_unlock(plp->rwlockp);
+	return len;
 }
 
 /*

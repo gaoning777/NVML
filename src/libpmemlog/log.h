@@ -59,6 +59,7 @@ struct pmemlog {
 	uint64_t start_offset;	/* start offset of the usable log space */
 	uint64_t end_offset;	/* maximum offset of the usable log space */
 	uint64_t write_offset;	/* current write point for the log */
+	uint64_t read_offset;	/* current read point for the log */
 
 	/* some run-time state, allocated out of memory pool... */
 	void *addr;			/* mapped region */

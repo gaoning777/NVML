@@ -47,6 +47,7 @@ LIBPMEMLOG_1.0 {
 		pmemlog_tell;
 		pmemlog_rewind;
 		pmemlog_walk;
+		pmemlog_read;
 	local:
 		*;
 };

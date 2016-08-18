@@ -50,5 +50,6 @@ EXPORTS
 	pmemlog_rewind
 	pmemlog_tell
 	pmemlog_walk
+	pmemlog_read
 
 	DllMain

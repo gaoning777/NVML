@@ -50,7 +50,7 @@ fi
 imageName=nvml/${OS}:${OS_VER}
 containerName=nvml-${OS}-${OS_VER}
 
-if [[ $CC == "clang" ]]; then export CXX="clang++"; else export CXX="g++"; fi
+if [[ $CC == "clang" ]]; then export CXX="clang++"; else export CXX="g++" CC="gcc"; fi
 if [[ $MAKE_PKG -eq 0 ]] ; then command="/bin/bash ./run-build.sh"; fi
 if [[ $MAKE_PKG -eq 1 ]] ; then command="/bin/bash ./run-build-package.sh"; fi
 
