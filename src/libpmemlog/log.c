@@ -270,6 +270,7 @@ pmemlog_open_common(const char *path, int cow)
 		LOG(2, "descriptor check failed");
 		goto err;
 	}
+	plp->read_offset = plp->start_offset;
 
 	/* initialize runtime parts */
 	if (pmemlog_runtime_init(plp, set->rdonly, rep->is_pmem) != 0) {
@@ -731,6 +732,7 @@ pmemlog_convert2h(struct pmemlog *plp)
 	plp->start_offset = le64toh(plp->start_offset);
 	plp->end_offset = le64toh(plp->end_offset);
 	plp->write_offset = le64toh(plp->write_offset);
+	plp->read_offset = le64toh(plp->start_offset);
 }
 
 /*
@@ -742,6 +744,7 @@ pmemlog_convert2le(struct pmemlog *plp)
 	plp->start_offset = htole64(plp->start_offset);
 	plp->end_offset = htole64(plp->end_offset);
 	plp->write_offset = htole64(plp->write_offset);
+	plp->read_offset = htole64(plp->start_offset);
 }
 
 #ifdef _MSC_VER
