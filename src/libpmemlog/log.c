@@ -73,7 +73,7 @@ pmemlog_descr_create(PMEMlogpool *plp, size_t poolsize)
 	plp->read_offset = plp->start_offset;
 
 	/* store non-volatile part of pool's descriptor */
-	pmem_msync(&plp->start_offset, 3 * sizeof(uint64_t));
+	pmem_msync(&plp->start_offset, 4 * sizeof(uint64_t));
 
 	return 0;
 }
