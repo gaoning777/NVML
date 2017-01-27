@@ -393,10 +393,12 @@ pmemlog_append(PMEMlogpool *plp, const void *buf, size_t count)
 		return -1;
 	}
 
+	/*
 	if ((errno = pthread_rwlock_wrlock(plp->rwlockp))) {
 		ERR("!pthread_rwlock_wrlock");
 		return -1;
 	}
+	*/
 
 	/* get the current values */
 	uint64_t end_offset = le64toh(plp->end_offset);
@@ -418,6 +420,9 @@ pmemlog_append(PMEMlogpool *plp, const void *buf, size_t count)
 		goto end;
 	}
 
+	/*
+	 *
+	 */
 	char *data = plp->addr;
 
 	/*
@@ -440,7 +445,9 @@ pmemlog_append(PMEMlogpool *plp, const void *buf, size_t count)
 	pmemlog_persist(plp, write_offset);
 
 end:
+	/*
 	util_rwlock_unlock(plp->rwlockp);
+	*/
 
 	return ret;
 }
@@ -653,10 +660,12 @@ pmemlog_read(PMEMlogpool *plp, size_t size, char **addr)
 	 * in place. We prevent everyone from changing the data behind our back
 	 * until we are done with processing it.
 	 */
+	/*
 	if ((errno = pthread_rwlock_rdlock(plp->rwlockp))) {
 		ERR("!pthread_rwlock_rdlock");
 		return 0;
 	}
+	*/
 
 	char *data = plp->addr;
 	uint64_t read_offset = le64toh(plp->read_offset);
@@ -664,7 +673,7 @@ pmemlog_read(PMEMlogpool *plp, size_t size, char **addr)
 	size_t len = MIN(size, end_offset - read_offset);
 	*addr = &data[read_offset];
 	plp->read_offset += len;
-	util_rwlock_unlock(plp->rwlockp);
+	//util_rwlock_unlock(plp->rwlockp);
 	return len;
 }
 

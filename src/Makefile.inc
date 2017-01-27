@@ -42,6 +42,7 @@ vpath %.c $(COMMON)
 
 INCS += -I../include -I../common/
 
+CFLAGS += -g
 CFLAGS += -std=gnu99
 CFLAGS += -Wall
 CFLAGS += -Werror
@@ -76,7 +77,7 @@ endif
 
 CFLAGS += $(EXTRA_CFLAGS)
 
-LDFLAGS += -Wl,-z,relro -Wl,--fatal-warnings -Wl,--warn-common $(EXTRA_LDFLAGS)
+LDFLAGS += -g -Wl,-z,relro -Wl,--fatal-warnings -Wl,--warn-common $(EXTRA_LDFLAGS)
 
 define arch32_error_msg
 
